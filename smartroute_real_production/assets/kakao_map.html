@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Kakao Map</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        * { margin: 0; padding: 0; }
+        html, body, #map { width: 100%; height: 100%; }
+        .marker-label {
+            background-color: #1E88E5;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 14px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .optimization-badge {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, #00D084 0%, #06D6A0 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 15px;
+            box-shadow: 0 4px 12px rgba(0,208,132,0.4);
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="optimization-badge" class="optimization-badge">
+        ✨ AI 최적화 완료!
+    </div>
+    
+    <script>
+        var script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=2d1faa8f61e158a807c397a01b529982&autoload=false';
+        
+        script.onload = function() {
+            kakao.maps.load(function() {
+                try {
+                    var container = document.getElementById('map');
+                    var options = {
+                        center: new kakao.maps.LatLng(37.5665, 126.9780),
+                        level: 5
+                    };
+                    var map = new kakao.maps.Map(container, options);
+                    
+                    var markers = [];
+                    var polyline = null;
+                    var beforePolyline = null;
+                    
+                    // 번호 마커 추가
+                    window.addMarker = function(lat, lng, title, index) {
+                        try {
+                            var position = new kakao.maps.LatLng(lat, lng);
+                            
+                            var marker = new kakao.maps.Marker({
+                                position: position,
+                                title: title
+                            });
+                            
+                            var content = '<div class="marker-label">' + index + '</div>';
+                            var customOverlay = new kakao.maps.CustomOverlay({
+                                position: position,
+                                content: content,
+                                yAnchor: 2.3
+                            });
+                            
+                            marker.setMap(map);
+                            customOverlay.setMap(map);
+                            
+                            kakao.maps.event.addListener(marker, 'click', function() {
+                                var infoContent = '<div style="padding:10px;background:white;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);">' +
+                                    '<strong style="font-size:16px;color:#1E88E5;">' + index + '. ' + title + '</strong><br>' +
+                                    '<span style="font-size:12px;color:#666;">위도: ' + lat.toFixed(4) + ', 경도: ' + lng.toFixed(4) + '</span>' +
+                                    '</div>';
+                                
+                                var infowindow = new kakao.maps.InfoWindow({
+                                    content: infoContent
+                                });
+                                
+                                infowindow.open(map, marker);
+                                
+                                setTimeout(function() {
+                                    infowindow.close();
+                                }, 3000);
+                            });
+                            
+                            markers.push({
+                                marker: marker,
+                                overlay: customOverlay,
+                                position: position
+                            });
+                            
+                            drawPolyline();
+                            
+                            if (markers.length > 0) {
+                                var bounds = new kakao.maps.LatLngBounds();
+                                markers.forEach(function(m) {
+                                    bounds.extend(m.position);
+                                });
+                                map.setBounds(bounds);
+                            }
+                            
+                        } catch (e) {
+                            console.error('Error adding marker:', e);
+                        }
+                    };
+                    
+                    // 경로선 그리기
+                    function drawPolyline() {
+                        if (polyline) {
+                            polyline.setMap(null);
+                        }
+                        
+                        if (markers.length >= 2) {
+                            var path = markers.map(function(m) {
+                                return m.position;
+                            });
+                            
+                            polyline = new kakao.maps.Polyline({
+                                path: path,
+                                strokeWeight: 5,
+                                strokeColor: '#1E88E5',
+                                strokeOpacity: 0.8,
+                                strokeStyle: 'solid'
+                            });
+                            
+                            polyline.setMap(map);
+                        }
+                    }
+                    
+                    // AI 최적화 시각화
+                    window.showOptimization = function(beforeOrder, afterOrder) {
+                        try {
+                            // Before 경로 (회색, 점선)
+                            if (beforePolyline) {
+                                beforePolyline.setMap(null);
+                            }
+                            
+                            var beforePath = beforeOrder.map(function(index) {
+                                return markers[index].position;
+                            });
+                            
+                            beforePolyline = new kakao.maps.Polyline({
+                                path: beforePath,
+                                strokeWeight: 4,
+                                strokeColor: '#999999',
+                                strokeOpacity: 0.5,
+                                strokeStyle: 'dash'
+                            });
+                            
+                            beforePolyline.setMap(map);
+                            
+                            // 잠시 후 After 경로로 애니메이션
+                            setTimeout(function() {
+                                if (beforePolyline) {
+                                    beforePolyline.setMap(null);
+                                }
+                                
+                                // After 경로 (파란색, 실선)
+                                drawPolyline();
+                                
+                                // 최적화 배지 표시
+                                var badge = document.getElementById('optimization-badge');
+                                badge.style.display = 'block';
+                                
+                                setTimeout(function() {
+                                    badge.style.display = 'none';
+                                }, 3000);
+                            }, 1000);
+                            
+                        } catch (e) {
+                            console.error('Error showing optimization:', e);
+                        }
+                    };
+                    
+                    window.clearMarkers = function() {
+                        markers.forEach(function(m) {
+                            m.marker.setMap(null);
+                            m.overlay.setMap(null);
+                        });
+                        if (polyline) {
+                            polyline.setMap(null);
+                        }
+                        if (beforePolyline) {
+                            beforePolyline.setMap(null);
+                        }
+                        markers = [];
+                    };
+                    
+                    window.setCenter = function(lat, lng) {
+                        var position = new kakao.maps.LatLng(lat, lng);
+                        map.setCenter(position);
+                    };
+                    
+                    window.setLevel = function(level) {
+                        map.setLevel(level);
+                    };
+                    
+                    if (window.FlutterChannel) {
+                        window.FlutterChannel.postMessage('map_loaded');
+                    }
+                    
+                } catch (e) {
+                    console.error('Error initializing map:', e);
+                }
+            });
+        };
+        
+        script.onerror = function() {
+            console.error('Failed to load Kakao Maps SDK');
+        };
+        
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
