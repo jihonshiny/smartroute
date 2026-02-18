@@ -15,11 +15,7 @@
 
 </div>
 
-## 프로젝트 미리보기
 
-<div align="center">
-  <img src="assets/부제목 추가.pdf" width="900"/>
-</div>
 
 ## 목차
 
